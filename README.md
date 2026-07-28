@@ -1,70 +1,92 @@
-# Welcome to your Expo app 👋
+# 🧘 HolisticMaster
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Una aplicación móvil multi-plataforma que te ayuda a descubrir y localizar spas y centros de bienestar cercanos. Con **HolisticMaster**, puedes explorar opciones de relajación y wellness en tu zona de forma sencilla e intuitiva.
 
-## Get started
+## ✨ Características
 
-1. Install dependencies
+- **Mapas Interactivos**: Visualiza spas y centros de bienestar en tiempo real usando mapas georreferenciados
+- **Ubicación Cercana**: Encuentra spas próximos a tu ubicación actual con radio de búsqueda configurable
+- **Multi-plataforma**: Disponible en iOS, Android y Web
+- **Interfaz Intuitiva**: Diseño limpio y temático (modo claro/oscuro)
+- **Gestión de Configuración**: Personaliza tu experiencia en la pestaña de configuración
+
+## 🚀 Comenzar
+
+1. Instalar dependencias
 
    ```bash
    npm install
    ```
 
-2. Start the app
+2. Iniciar la aplicación
 
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+   Selecciona una opción para abrir la app en:
+   - [build de desarrollo](https://docs.expo.dev/develop/development-builds/introduction/)
+   - [emulador Android](https://docs.expo.dev/workflow/android-studio-emulator/)
+   - [simulador iOS](https://docs.expo.dev/workflow/ios-simulator/)
+   - [Expo Go](https://expo.dev/go)
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 📱 Estructura del Proyecto
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+Este proyecto utiliza [Expo Router](https://docs.expo.dev/router/introduction/) para enrutamiento basado en archivos:
 
-## Get a fresh project
+- **`src/app/`** - Pantallas principales (inicio, exploración, configuración)
+- **`src/components/`** - Componentes reutilizables (mapas, temas, iconos)
+- **`src/lib/`** - Utilidades (cálculo de distancias, integración con APIs)
+- **`src/hooks/`** - Hooks personalizados (tema, esquema de colores)
 
-When you're ready, run:
+## ⚙️ Configuración del Proyecto
 
-```bash
-npm run reset-project
-```
+Este proyecto está construido con:
+- **[Expo](https://expo.dev/)** - Framework para apps React Native multiplataforma
+- **[Expo Router](https://docs.expo.dev/router/introduction/)** - Enrutamiento basado en archivos
+- **[Expo Maps](https://docs.expo.dev/versions/v57.0.0/sdk/map-view/)** - Visualización de mapas interactivos
+- **[Expo Location](https://docs.expo.dev/versions/v57.0.0/sdk/location/)** - Acceso a geolocalización
+- **TypeScript** - Tipado estático para mayor confiabilidad
+- **React Native** - Framework de UI multiplataforma
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## 🧪 Pruebas y Validación
 
-### Other setup steps
+Este proyecto incluye un pipeline completo de validación automatizada:
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+- **Linting**: Ejecuta `npm run lint` para verificar la calidad del código con ESLint
+- **Pruebas Unitarias**: Ejecuta `npm run test` para correr las pruebas con Jest
+- **Property-based Testing**: Se incluye `fast-check` para generar cientos de casos de prueba aleatorios
+- **Pipeline Unificado**: Ejecuta `npm run validate` para lint + tests en una sola orden
+- **Cobertura de Código**: Ejecuta `npm run test:coverage` para verificar la cobertura (con umbrales mínimos)
+- **Validación Completa**: Ejecuta `npm run validate:coverage` para lint + tests + coverage juntos
 
-## Pruebas Automatizadas (Validacion de Ejecucion)
+## 📚 Recursos Útiles
 
-- **Validacion de Sintaxis:** Ejecuta `npm run lint` para correr `eslint` y asegurar que el codigo sea legible y compile sin problemas de estilo.
-- **Pruebas Unitarias Dinamicas:** Ejecuta `npm run test` (Jest) para correr pruebas unitarias preexistentes y las nuevas que se agreguen.
-- **Pruebas de Propiedad (Property-based Testing):** Se incluye `fast-check` (equivalente en TypeScript a Hypothesis) para generar cientos de entradas aleatorias y extremas.
-- **Pipeline Unificado:** Ejecuta `npm run validate` para correr lint + tests en una sola orden.
-- **Cobertura con umbrales minimos:** Ejecuta `npm run test:coverage`. Si la cobertura cae por debajo del umbral configurado en `jest.config.js`, el comando falla.
-- **Validacion completa con cobertura:** Ejecuta `npm run validate:coverage` para lint + tests + coverage en una sola orden.
+Para aprender más sobre Expo y desarrollo de la aplicación:
 
-### Nota sobre Python
+- [Documentación de Expo](https://docs.expo.dev/versions/v57.0.0/) - Documentación oficial versión v57.0.0
+- [Expo Router Guide](https://docs.expo.dev/router/introduction/) - Guía de enrutamiento
+- [Expo Maps API](https://docs.expo.dev/versions/v57.0.0/sdk/map-view/) - Integración de mapas
+- [Expo Location API](https://docs.expo.dev/versions/v57.0.0/sdk/location/) - Geolocalización
+- [TypeScript en Expo](https://docs.expo.dev/guides/typescript/) - Guía de TypeScript
 
-- Este repositorio es TypeScript/Expo y no contiene modulos Python, por lo que `flake8`, `pytest` y `hypothesis` no aplican aqui de forma nativa.
-- Si en el futuro agregas codigo Python, puedes extender el pipeline con esos comandos para validar esa parte tambien.
+## 🤝 Contribución
 
-## Learn more
+Las contribuciones son bienvenidas. Por favor:
 
-To learn more about developing your project with Expo, look at the following resources:
+1. Fork el repositorio
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## 📄 Licencia
 
-## Join the community
+Este proyecto está bajo licencia MIT. Ver el archivo [LICENSE](LICENSE) para más detalles.
 
-Join our community of developers creating universal apps.
+## 💬 Comunidad
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Únete a la comunidad de Expo para preguntas y soporte:
+
+- [Expo en GitHub](https://github.com/expo/expo) - Plataforma open source
+- [Comunidad Discord](https://chat.expo.dev) - Chat y soporte
