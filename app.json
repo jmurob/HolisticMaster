@@ -8,7 +8,8 @@
     "scheme": "holisticmaster",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.anonymous.HolisticMaster"
     },
     "android": {
       "adaptiveIcon": {
@@ -31,6 +32,13 @@
           "backgroundColor": "#208AEF",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
+        }
+      ],
+      [
+        "expo-maps",
+        {
+          "requestLocationPermission": true,
+          "locationPermission": "Permite que HolisticMaster use tu ubicación para mostrar spas cercanos."
         }
       ]
     ],

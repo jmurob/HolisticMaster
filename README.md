@@ -41,6 +41,20 @@ This command will move the starter code to the **app-example** directory and cre
 - If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
 - Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
 
+## Pruebas Automatizadas (Validacion de Ejecucion)
+
+- **Validacion de Sintaxis:** Ejecuta `npm run lint` para correr `eslint` y asegurar que el codigo sea legible y compile sin problemas de estilo.
+- **Pruebas Unitarias Dinamicas:** Ejecuta `npm run test` (Jest) para correr pruebas unitarias preexistentes y las nuevas que se agreguen.
+- **Pruebas de Propiedad (Property-based Testing):** Se incluye `fast-check` (equivalente en TypeScript a Hypothesis) para generar cientos de entradas aleatorias y extremas.
+- **Pipeline Unificado:** Ejecuta `npm run validate` para correr lint + tests en una sola orden.
+- **Cobertura con umbrales minimos:** Ejecuta `npm run test:coverage`. Si la cobertura cae por debajo del umbral configurado en `jest.config.js`, el comando falla.
+- **Validacion completa con cobertura:** Ejecuta `npm run validate:coverage` para lint + tests + coverage en una sola orden.
+
+### Nota sobre Python
+
+- Este repositorio es TypeScript/Expo y no contiene modulos Python, por lo que `flake8`, `pytest` y `hypothesis` no aplican aqui de forma nativa.
+- Si en el futuro agregas codigo Python, puedes extender el pipeline con esos comandos para validar esa parte tambien.
+
 ## Learn more
 
 To learn more about developing your project with Expo, look at the following resources:

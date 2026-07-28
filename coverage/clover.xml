@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1785257070183" clover="3.2.0">
+  <project timestamp="1785257070183" name="All files">
+    <metrics statements="17" coveredstatements="17" conditionals="0" coveredconditionals="0" methods="2" coveredmethods="2" elements="19" coveredelements="19" complexity="0" loc="17" ncloc="17" packages="1" files="1" classes="1"/>
+    <file name="map-utils.ts" path="/Users/jesusmuro/Documents/HolisticMaster/src/lib/map-utils.ts">
+      <metrics statements="17" coveredstatements="17" conditionals="0" coveredconditionals="0" methods="2" coveredmethods="2"/>
+      <line num="6" count="1" type="stmt"/>
+      <line num="14" count="1002" type="stmt"/>
+      <line num="15" count="1002" type="stmt"/>
+      <line num="16" count="1002" type="stmt"/>
+      <line num="17" count="1002" type="stmt"/>
+      <line num="19" count="1002" type="stmt"/>
+      <line num="24" count="1002" type="stmt"/>
+      <line num="28" count="501" type="stmt"/>
+      <line num="29" count="501" type="stmt"/>
+      <line num="30" count="501" type="stmt"/>
+      <line num="31" count="501" type="stmt"/>
+      <line num="33" count="501" type="stmt"/>
+      <line num="34" count="501" type="stmt"/>
+      <line num="35" count="501" type="stmt"/>
+      <line num="36" count="501" type="stmt"/>
+      <line num="37" count="501" type="stmt"/>
+      <line num="39" count="501" type="stmt"/>
+    </file>
+  </project>
+</coverage>
