@@ -1,7 +1,15 @@
 import * as Location from 'expo-location';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+    ActivityIndicator,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    useWindowDimensions,
+    View,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SpaMap, type MapCoordinates, type NearbySpa } from '@/components/spa-map';
@@ -11,7 +19,7 @@ import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { distanceInKilometers } from '@/lib/map-utils';
 
-const SEARCH_RADIUS_METERS = 8000;
+const SEARCH_RADIUS_METERS = 15000;
 const ACCENT = '#287D6B';
 const ACCENT_SOFT = '#DCEDE7';
 const WARM_ACCENT = '#D98F45';
@@ -31,6 +39,10 @@ async function findNearbySpas(origin: MapCoordinates) {
     nwr["leisure"="spa"](around:${SEARCH_RADIUS_METERS},${origin.latitude},${origin.longitude});
     nwr["amenity"="spa"](around:${SEARCH_RADIUS_METERS},${origin.latitude},${origin.longitude});
     nwr["healthcare"="spa"](around:${SEARCH_RADIUS_METERS},${origin.latitude},${origin.longitude});
+    nwr["shop"="beauty"](around:${SEARCH_RADIUS_METERS},${origin.latitude},${origin.longitude});
+    nwr["shop"="massage"](around:${SEARCH_RADIUS_METERS},${origin.latitude},${origin.longitude});
+    nwr["tourism"="spa"](around:${SEARCH_RADIUS_METERS},${origin.latitude},${origin.longitude});
+    nwr["shop"="wellness"](around:${SEARCH_RADIUS_METERS},${origin.latitude},${origin.longitude});
   );out center tags;`;
   const response = await fetch('https://overpass-api.de/api/interpreter', {
     method: 'POST',
@@ -69,7 +81,9 @@ async function findNearbySpas(origin: MapCoordinates) {
 
 export default function ExploreScreen() {
   const theme = useTheme();
+  const { width } = useWindowDimensions();
   const safeAreaInsets = useSafeAreaInsets();
+  const isWideWeb = Platform.OS === 'web' && width >= 900;
   const [location, setLocation] = useState<MapCoordinates | null>(null);
   const [spas, setSpas] = useState<NearbySpa[]>([]);
   const [selectedSpaId, setSelectedSpaId] = useState<string | null>(null);
@@ -106,8 +120,8 @@ export default function ExploreScreen() {
         setSelectedSpaId(nearbySpas[0]?.id ?? null);
         setMessage(
           nearbySpas.length > 0
-            ? `${nearbySpas.length} spas encontrados en un radio de 8 km`
-            : 'No encontramos spas registrados en un radio de 8 km.',
+            ? `${nearbySpas.length} lugares de bienestar encontrados en un radio de 15 km`
+            : 'No encontramos lugares de bienestar registrados en un radio de 15 km.',
         );
         setStatus('ready');
       } catch (error) {
@@ -133,7 +147,7 @@ export default function ExploreScreen() {
           styles.safeArea,
           { paddingBottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three },
         ]}>
-        <View style={styles.header}>
+        <View style={[styles.header, isWideWeb && styles.headerWide]}>
           <View style={styles.headerTopRow}>
             <View style={[styles.eyebrow, { backgroundColor: ACCENT_SOFT }]}>
               <SymbolView name="sparkles" size={13} tintColor={ACCENT} />
@@ -152,89 +166,107 @@ export default function ExploreScreen() {
               ]}>
               {status === 'loading' ? (
                 <ActivityIndicator color={theme.text} size="small" />
+              ) : Platform.OS === 'web' ? (
+                <ThemedText type="smallBold">Actualizar</ThemedText>
               ) : (
                 <SymbolView name="location.fill" size={20} tintColor={theme.text} />
               )}
             </Pressable>
           </View>
           <View style={styles.heading}>
-            <ThemedText type="subtitle">Spas cerca de ti</ThemedText>
+            <ThemedText
+              type="title"
+              style={[styles.pageTitle, isWideWeb && styles.pageTitleWide]}>
+              Encuentra tu pausa
+            </ThemedText>
             <ThemedText type="small" themeColor="textSecondary" style={styles.statusText}>
               {message}
             </ThemedText>
           </View>
         </View>
 
-        <View style={styles.mapWrapper}>
-          <View style={styles.mapBadge}>
-            <View style={styles.liveDot} />
-            <ThemedText type="smallBold" style={styles.mapBadgeText}>
-              {spas.length > 0 ? `${spas.length} lugares` : 'Tu zona'}
-            </ThemedText>
-          </View>
-          {location && (
-            <View style={styles.zoomControls}>
-              <Pressable
-                accessibilityLabel="Acercar mapa"
-                onPress={() => setZoom((value) => Math.min(MAX_ZOOM, value + 1))}
-                style={({ pressed }) => [
-                  styles.zoomButton,
-                  { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected },
-                  pressed && styles.pressed,
-                ]}>
-                <SymbolView name="plus" size={16} tintColor={theme.text} />
-              </Pressable>
-              <Pressable
-                accessibilityLabel="Alejar mapa"
-                onPress={() => setZoom((value) => Math.max(MIN_ZOOM, value - 1))}
-                style={({ pressed }) => [
-                  styles.zoomButton,
-                  { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected },
-                  pressed && styles.pressed,
-                ]}>
-                <SymbolView name="minus" size={16} tintColor={theme.text} />
-              </Pressable>
-            </View>
-          )}
-          {location ? (
-            <SpaMap
-              key={refreshToken}
-              location={location}
-              spas={spas}
-              selectedSpaId={selectedSpaId}
-              zoom={zoom}
-              onSelectSpa={setSelectedSpaId}
-            />
-          ) : (
-            <View style={[styles.loadingMap, { backgroundColor: theme.backgroundElement }]}>
-              <ActivityIndicator color={theme.text} size="large" />
-              <ThemedText type="small">{message}</ThemedText>
-              {status === 'error' && (
-                <Pressable
-                  onPress={() => setRefreshToken((value) => value + 1)}
-                  style={[styles.retryButton, { backgroundColor: theme.text }]}>
-                  <ThemedText type="smallBold" style={{ color: theme.background }}>
-                    Intentar de nuevo
-                  </ThemedText>
-                </Pressable>
-              )}
-            </View>
-          )}
-        </View>
-
-        {spas.length > 0 && (
-          <View style={styles.resultsSection}>
-            <View style={styles.resultsHeader}>
-              <ThemedText type="smallBold">Recomendados por distancia</ThemedText>
-              <ThemedText type="code" style={styles.resultCount}>
-                {spas.length} RESULTADOS
+        <View style={[styles.explorerLayout, isWideWeb && styles.explorerLayoutWide]}>
+          <View style={[styles.mapWrapper, isWideWeb && styles.mapWrapperWide]}>
+            <View style={styles.mapBadge}>
+              <View style={styles.liveDot} />
+              <ThemedText type="smallBold" style={styles.mapBadgeText}>
+                {spas.length > 0 ? `${spas.length} lugares en tu zona` : 'Explorando tu zona'}
               </ThemedText>
             </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.results}>
-              {spas.map((spa) => {
+            {location && Platform.OS !== 'web' && (
+              <View style={styles.zoomControls}>
+                <Pressable
+                  accessibilityLabel="Acercar mapa"
+                  onPress={() => setZoom((value) => Math.min(MAX_ZOOM, value + 1))}
+                  style={({ pressed }) => [
+                    styles.zoomButton,
+                    { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected },
+                    pressed && styles.pressed,
+                  ]}>
+                  <SymbolView name="plus" size={16} tintColor={theme.text} />
+                </Pressable>
+                <Pressable
+                  accessibilityLabel="Alejar mapa"
+                  onPress={() => setZoom((value) => Math.max(MIN_ZOOM, value - 1))}
+                  style={({ pressed }) => [
+                    styles.zoomButton,
+                    { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected },
+                    pressed && styles.pressed,
+                  ]}>
+                  <SymbolView name="minus" size={16} tintColor={theme.text} />
+                </Pressable>
+              </View>
+            )}
+            {location ? (
+              <SpaMap
+                key={refreshToken}
+                location={location}
+                spas={spas}
+                selectedSpaId={selectedSpaId}
+                zoom={zoom}
+                onSelectSpa={setSelectedSpaId}
+              />
+            ) : (
+              <View style={[styles.loadingMap, { backgroundColor: theme.backgroundElement }]}> 
+                <ActivityIndicator color={theme.text} size="large" />
+                <ThemedText type="small">{message}</ThemedText>
+                {status === 'error' && (
+                  <Pressable
+                    onPress={() => setRefreshToken((value) => value + 1)}
+                    style={[styles.retryButton, { backgroundColor: theme.text }]}> 
+                    <ThemedText type="smallBold" style={{ color: theme.background }}>
+                      Intentar de nuevo
+                    </ThemedText>
+                  </Pressable>
+                )}
+              </View>
+            )}
+          </View>
+
+          {spas.length > 0 && (
+            <View
+              style={[
+                styles.resultsSection,
+                isWideWeb && styles.resultsSectionWide,
+              ]}>
+              <View style={styles.resultsHeader}>
+                <View style={styles.resultsHeadingCopy}>
+                  <ThemedText type="subtitle">Más cerca de ti</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Selecciona un lugar para verlo en el mapa
+                  </ThemedText>
+                </View>
+                <ThemedText type="code" style={styles.resultCount}>
+                  {spas.length}
+                </ThemedText>
+              </View>
+              <ScrollView
+                horizontal={!isWideWeb}
+                showsHorizontalScrollIndicator={false}
+                showsVerticalScrollIndicator={false}
+                style={isWideWeb && styles.resultsScrollWide}
+                contentContainerStyle={[styles.results, isWideWeb && styles.resultsWide]}>
+              {spas.map((spa, index) => {
                 const selected = spa.id === selectedSpa?.id;
                 return (
                   <Pressable
@@ -242,6 +274,7 @@ export default function ExploreScreen() {
                     onPress={() => setSelectedSpaId(spa.id)}
                     style={[
                       styles.spaCard,
+                      isWideWeb && styles.spaCardWide,
                       {
                         backgroundColor: selected
                           ? theme.backgroundSelected
@@ -251,7 +284,9 @@ export default function ExploreScreen() {
                     ]}>
                     <View style={styles.cardTopRow}>
                       <View style={[styles.spaIcon, { backgroundColor: selected ? ACCENT : WARM_ACCENT }]}>
-                        <SymbolView name="leaf.fill" size={14} tintColor="#FFFFFF" />
+                        <ThemedText type="smallBold" style={styles.spaIndex}>
+                          {index + 1}
+                        </ThemedText>
                       </View>
                       <ThemedText type="smallBold" numberOfLines={1} style={styles.spaName}>
                         {spa.name}
@@ -261,7 +296,7 @@ export default function ExploreScreen() {
                       {spa.address}
                     </ThemedText>
                     <View style={styles.distanceRow}>
-                      <SymbolView name="location.fill" size={11} tintColor={ACCENT} />
+                      <View style={styles.distanceDot} />
                       <ThemedText type="code" style={styles.distanceText}>
                         {spa.distanceKm.toFixed(1)} km de ti
                       </ThemedText>
@@ -269,9 +304,10 @@ export default function ExploreScreen() {
                   </Pressable>
                 );
               })}
-            </ScrollView>
-          </View>
-        )}
+              </ScrollView>
+            </View>
+          )}
+        </View>
       </SafeAreaView>
     </ThemedView>
   );
@@ -282,20 +318,24 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     paddingTop: Spacing.three,
+    width: '100%',
+    maxWidth: 1440,
+    alignSelf: 'center',
   },
   header: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: Spacing.two,
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.two,
     paddingBottom: Spacing.four,
   },
+  headerWide: { paddingTop: 96, paddingBottom: Spacing.five },
   headerTopRow: {
     width: '100%',
     minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     gap: Spacing.two,
   },
   eyebrow: {
@@ -307,21 +347,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
   },
   eyebrowText: { color: ACCENT },
-  heading: { alignItems: 'center', gap: Spacing.one },
-  statusText: { textAlign: 'center', maxWidth: 300 },
+  heading: { alignItems: 'flex-start', gap: Spacing.one },
+  pageTitle: { fontSize: 38, lineHeight: 44 },
+  pageTitleWide: { fontSize: 52, lineHeight: 58 },
+  statusText: { maxWidth: 520 },
   iconButton: {
-    width: 44,
+    minWidth: 44,
     height: 44,
     borderRadius: 8,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: Spacing.three,
   },
   pressed: { opacity: 0.7 },
+  explorerLayout: { flex: 1, gap: Spacing.three, paddingHorizontal: Spacing.three },
+  explorerLayoutWide: { flexDirection: 'row', minHeight: 520, paddingHorizontal: Spacing.four },
   mapWrapper: {
-    flex: 1,
-    minHeight: 180,
-    marginHorizontal: Spacing.three,
+    ...Platform.select({
+      web: { flexGrow: 0, flexShrink: 0, height: 380 },
+      default: { flex: 1, minHeight: 180 },
+    }),
     borderRadius: 8,
     overflow: 'hidden',
     borderWidth: 1,
@@ -331,6 +377,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.16,
     shadowRadius: 18,
     elevation: 5,
+  },
+  mapWrapperWide: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    width: 'auto',
+    height: 520,
   },
   mapBadge: {
     position: 'absolute',
@@ -376,14 +429,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
   },
   resultsSection: { paddingTop: Spacing.three },
+  resultsSectionWide: { width: 360, height: 520, paddingTop: 0, borderRadius: 8, overflow: 'hidden' },
   resultsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Spacing.four,
+    padding: Spacing.three,
   },
-  resultCount: { color: ACCENT },
-  results: { gap: Spacing.two, paddingHorizontal: Spacing.four, paddingVertical: Spacing.three },
+  resultsHeadingCopy: { flex: 1, gap: Spacing.one },
+  resultCount: {
+    color: '#FFFFFF',
+    backgroundColor: ACCENT,
+    minWidth: 34,
+    height: 34,
+    borderRadius: 6,
+    textAlign: 'center',
+    lineHeight: 34,
+  },
+  resultsScrollWide: { flex: 1 },
+  results: { gap: Spacing.two, paddingHorizontal: Spacing.one, paddingBottom: Spacing.three },
+  resultsWide: { paddingHorizontal: Spacing.two },
   spaCard: {
     width: 240,
     minHeight: 112,
@@ -394,6 +459,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
   },
+  spaCardWide: { width: '100%', minHeight: 94 },
   cardTopRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   spaIcon: {
     width: 28,
@@ -403,6 +469,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   spaName: { flex: 1 },
+  spaIndex: { color: '#FFFFFF' },
   distanceRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  distanceDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: ACCENT },
   distanceText: { color: ACCENT },
 });

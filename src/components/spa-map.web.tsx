@@ -1,9 +1,5 @@
-import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-
-import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
-import { buildOpenStreetMapEmbedUrl } from '@/lib/map-utils';
+import { useEffect, useRef } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 export type MapCoordinates = {
   latitude: number;
@@ -26,51 +22,109 @@ type SpaMapProps = {
   onSelectSpa: (id: string) => void;
 };
 
+function createSpaIcon(leaflet: typeof import('leaflet'), index: number, selected: boolean) {
+  const size = selected ? 34 : 28;
+  return leaflet.divIcon({
+    className: '',
+    html: `<div style="width:${size}px;height:${size}px;border-radius:50% 50% 50% 8px;transform:rotate(-45deg);background:${selected ? '#287D6B' : '#D98F45'};border:3px solid #fff;box-shadow:0 4px 12px rgba(20,38,34,.28)"><span style="display:block;transform:rotate(45deg);color:#fff;text-align:center;line-height:${size - 6}px;font:700 12px sans-serif">${index + 1}</span></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size - 2],
+  });
+}
+
 export function SpaMap(_props: SpaMapProps) {
   const { location, spas, selectedSpaId, zoom, onSelectSpa } = _props;
-  const selectedSpa = spas.find((spa) => spa.id === selectedSpaId) ?? null;
-  const focusCoordinates = selectedSpa?.coordinates ?? location;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<import('leaflet').Map | null>(null);
+  const markersRef = useRef<Map<string, import('leaflet').Marker>>(new Map());
 
-  const embedUrl = useMemo(() => {
-    return buildOpenStreetMapEmbedUrl({ center: focusCoordinates, zoom });
-  }, [focusCoordinates, zoom]);
+  useEffect(() => {
+    let disposed = false;
+    const markers = new Map<string, import('leaflet').Marker>();
+    markersRef.current = markers;
+
+    async function createMap() {
+      const L = await import('leaflet');
+      if (disposed || !containerRef.current || mapRef.current) return;
+
+      const map = L.map(containerRef.current, {
+        center: [location.latitude, location.longitude],
+        zoom,
+        zoomControl: false,
+      });
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+        maxZoom: 19,
+      }).addTo(map);
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+      L.circleMarker([location.latitude, location.longitude], {
+        radius: 8,
+        color: '#FFFFFF',
+        weight: 3,
+        fillColor: '#287D6B',
+        fillOpacity: 1,
+      })
+        .bindTooltip('Tu ubicación', { direction: 'top' })
+        .addTo(map);
+
+      const bounds = L.latLngBounds([[location.latitude, location.longitude]]);
+      spas.forEach((spa, index) => {
+        const marker = L.marker([spa.coordinates.latitude, spa.coordinates.longitude], {
+          icon: createSpaIcon(L, index, false),
+          title: spa.name,
+        })
+          .bindTooltip(spa.name, { direction: 'top', offset: [0, -24] })
+          .on('click', () => onSelectSpa(spa.id))
+          .addTo(map);
+
+        markers.set(spa.id, marker);
+        bounds.extend([spa.coordinates.latitude, spa.coordinates.longitude]);
+      });
+
+      mapRef.current = map;
+      if (spas.length > 0) map.fitBounds(bounds, { padding: [48, 48], maxZoom: 14 });
+    }
+
+    createMap();
+    return () => {
+      disposed = true;
+      const activeMap = mapRef.current;
+      mapRef.current = null;
+      markers.clear();
+      activeMap?.remove();
+    };
+  }, [location, onSelectSpa, spas, zoom]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    async function updateSelection() {
+      const L = await import('leaflet');
+      if (disposed) return;
+
+      spas.forEach((spa, index) => {
+        const marker = markersRef.current.get(spa.id);
+        const selected = spa.id === selectedSpaId;
+        marker?.setIcon(createSpaIcon(L, index, selected));
+        marker?.setZIndexOffset(selected ? 1000 : 0);
+      });
+    }
+
+    updateSelection();
+    return () => {
+      disposed = true;
+    };
+  }, [selectedSpaId, spas]);
 
   return (
     <View style={styles.container}>
-      <View style={styles.mapFrame}>
-        <iframe
-          src={embedUrl}
-          style={styles.iframe}
-          title="Mapa de spas"
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-        />
-      </View>
-
-      {spas.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.quickSelectList}>
-          {spas.slice(0, 8).map((spa) => {
-            const selected = spa.id === selectedSpaId;
-            return (
-              <Pressable
-                key={spa.id}
-                onPress={() => onSelectSpa(spa.id)}
-                style={[styles.quickSelectItem, selected && styles.quickSelectItemSelected]}>
-                <ThemedText type="smallBold" numberOfLines={1} style={styles.quickSelectText}>
-                  {spa.name}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      )}
-
-      <ThemedText type="small" themeColor="textSecondary" style={styles.caption}>
-        Vista web con OpenStreetMap. En móvil se usa el mapa nativo.
-      </ThemedText>
+      <div
+        ref={containerRef}
+        style={{ width: '100%', height: '100%' }}
+        aria-label="Mapa de lugares de bienestar"
+      />
     </View>
   );
 }
@@ -78,40 +132,6 @@ export function SpaMap(_props: SpaMapProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    gap: Spacing.two,
-    padding: Spacing.three,
+    minHeight: 280,
   },
-  mapFrame: {
-    flex: 1,
-    minHeight: 220,
-    borderRadius: 8,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(40, 125, 107, 0.28)',
-    backgroundColor: '#F3F7F6',
-  },
-  iframe: {
-    width: '100%',
-    height: '100%',
-    border: '0',
-  },
-  quickSelectList: {
-    gap: Spacing.two,
-    paddingVertical: Spacing.one,
-  },
-  quickSelectItem: {
-    maxWidth: 180,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(40, 125, 107, 0.3)',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
-    backgroundColor: '#FFFFFF',
-  },
-  quickSelectItemSelected: {
-    borderColor: '#287D6B',
-    backgroundColor: '#DCEDE7',
-  },
-  quickSelectText: { flexShrink: 1 },
-  caption: { textAlign: 'center' },
 });
