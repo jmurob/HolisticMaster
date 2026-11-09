@@ -40,6 +40,14 @@
           "requestLocationPermission": true,
           "locationPermission": "Permite que HolisticMaster use tu ubicación para mostrar spas cercanos."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "buildReactNativeFromSource": true
+          }
+        }
       ]
     ],
     "experiments": {
