@@ -1,12 +1,13 @@
 import * as Location from 'expo-location';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Platform,
     Pressable,
     ScrollView,
     StyleSheet,
+    TextInput,
     useWindowDimensions,
     View,
 } from 'react-native';
@@ -32,6 +33,12 @@ type OverpassElement = {
   lon?: number;
   center?: { lat: number; lon: number };
   tags?: Record<string, string>;
+};
+
+type PlaceSuggestion = {
+  id: string;
+  label: string;
+  coordinates: MapCoordinates;
 };
 
 async function findNearbySpas(origin: MapCoordinates) {
@@ -85,24 +92,35 @@ export default function ExploreScreen() {
   const safeAreaInsets = useSafeAreaInsets();
   const isWideWeb = Platform.OS === 'web' && width >= 900;
   const [location, setLocation] = useState<MapCoordinates | null>(null);
+  const [locationLabel, setLocationLabel] = useState('');
+  const [isMyLocation, setIsMyLocation] = useState(false);
   const [spas, setSpas] = useState<NearbySpa[]>([]);
   const [selectedSpaId, setSelectedSpaId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(13);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [message, setMessage] = useState('Buscando tu ubicación...');
+  const [status, setStatus] = useState<'locating' | 'loading' | 'ready' | 'location-error' | 'error'>('location-error');
+  const [message, setMessage] = useState('Elige cómo quieres explorar: comparte tu ubicación o busca una ciudad.');
   const [refreshToken, setRefreshToken] = useState(0);
+  const [cityQuery, setCityQuery] = useState('');
+  const [cityResults, setCityResults] = useState<PlaceSuggestion[]>([]);
+  const [isSearchingCity, setIsSearchingCity] = useState(false);
+  const [citySearchError, setCitySearchError] = useState('');
+  const locationRequestId = useRef(0);
+  const lastCitySearchTime = useRef(0);
 
   useEffect(() => {
+    if (refreshToken === 0) return;
+
     let active = true;
+    const requestId = ++locationRequestId.current;
 
     async function loadNearbySpas() {
-      setStatus('loading');
-      setMessage('Buscando tu ubicación...');
-
+      setStatus('locating');
+      setMessage('Buscando tu ubicación…');
+      let foundLocation = false;
       try {
         const permission = await Location.requestForegroundPermissionsAsync();
         if (permission.status !== 'granted') {
-          throw new Error('Permite el acceso a tu ubicación para encontrar spas cercanos.');
+          throw new Error('location-unavailable');
         }
 
         const currentLocation = await Location.getCurrentPositionAsync({
@@ -112,30 +130,124 @@ export default function ExploreScreen() {
           latitude: currentLocation.coords.latitude,
           longitude: currentLocation.coords.longitude,
         };
-        const nearbySpas = await findNearbySpas(coordinates);
-        if (!active) return;
-
+        foundLocation = true;
+        if (!active || requestId !== locationRequestId.current) return;
         setLocation(coordinates);
+        setLocationLabel('Mi ubicación');
+        setIsMyLocation(true);
+        setSpas([]);
+        setStatus('loading');
+        setMessage('Buscando lugares de bienestar cerca de ti…');
+        const nearbySpas = await findNearbySpas(coordinates);
+        if (!active || requestId !== locationRequestId.current) return;
+
         setSpas(nearbySpas);
         setSelectedSpaId(nearbySpas[0]?.id ?? null);
         setMessage(
           nearbySpas.length > 0
-            ? `${nearbySpas.length} lugares de bienestar encontrados en un radio de 15 km`
+            ? `${nearbySpas.length} lugares de bienestar encontrados en un radio de 15 km.`
             : 'No encontramos lugares de bienestar registrados en un radio de 15 km.',
         );
         setStatus('ready');
-      } catch (error) {
-        if (!active) return;
-        setMessage(error instanceof Error ? error.message : 'No fue posible cargar los spas.');
-        setStatus('error');
+      } catch {
+        if (!active || requestId !== locationRequestId.current) return;
+        if (!foundLocation) {
+          setMessage('No pudimos acceder al GPS. Puedes intentarlo de nuevo o buscar una ciudad.');
+          setStatus('location-error');
+        } else {
+          setMessage('No pudimos cargar los lugares ahora. Revisa tu conexión e intenta actualizar.');
+          setStatus('error');
+        }
       }
     }
 
     loadNearbySpas();
     return () => {
       active = false;
+      if (locationRequestId.current === requestId) locationRequestId.current += 1;
     };
   }, [refreshToken]);
+
+  async function searchCities() {
+    const query = cityQuery.trim();
+    if (!query || isSearchingCity || Date.now() - lastCitySearchTime.current < 1000) return;
+
+    lastCitySearchTime.current = Date.now();
+    setIsSearchingCity(true);
+    setCitySearchError('');
+    setCityResults([]);
+    try {
+      const response = await fetch(
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5&lang=es`,
+      );
+      if (!response.ok) throw new Error('search-failed');
+
+      const data = (await response.json()) as {
+        features: {
+          geometry: { coordinates: [number, number] };
+          properties: { name?: string; city?: string; state?: string; country?: string };
+        }[];
+      };
+      const suggestions = data.features
+        .map((feature, index) => {
+          const properties = feature.properties;
+          const label = [properties.name ?? properties.city, properties.state, properties.country]
+            .filter((part, partIndex, parts) => part && parts.indexOf(part) === partIndex)
+            .join(', ');
+          const [longitude, latitude] = feature.geometry.coordinates;
+          return { id: `${label}-${index}`, label, coordinates: { latitude, longitude } };
+        })
+        .filter((suggestion) => suggestion.label);
+
+      if (suggestions.length === 0) {
+        setCitySearchError('No encontramos esa zona. Prueba con ciudad y país.');
+      } else {
+        setCityResults(suggestions);
+      }
+    } catch {
+      setCitySearchError('No pudimos buscar esa zona. Revisa tu conexión e inténtalo otra vez.');
+    } finally {
+      setIsSearchingCity(false);
+    }
+  }
+
+  async function selectCity(suggestion: PlaceSuggestion) {
+    locationRequestId.current += 1;
+    setLocation(suggestion.coordinates);
+    setLocationLabel(suggestion.label);
+    setIsMyLocation(false);
+    setCityResults([]);
+    setSpas([]);
+    setSelectedSpaId(null);
+    setStatus('loading');
+    setMessage(`Buscando lugares de bienestar cerca de ${suggestion.label}…`);
+    try {
+      const nearbySpas = await findNearbySpas(suggestion.coordinates);
+      setSpas(nearbySpas);
+      setSelectedSpaId(nearbySpas[0]?.id ?? null);
+      setMessage(
+        nearbySpas.length > 0
+          ? `${nearbySpas.length} lugares de bienestar encontrados en un radio de 15 km.`
+          : `No encontramos lugares de bienestar registrados cerca de ${suggestion.label}.`,
+      );
+      setStatus('ready');
+    } catch {
+      setMessage('No pudimos cargar los lugares ahora. Revisa tu conexión e intenta actualizar.');
+      setStatus('error');
+    }
+  }
+
+  function changeSearchArea() {
+    locationRequestId.current += 1;
+    setLocation(null);
+    setLocationLabel('');
+    setIsMyLocation(false);
+    setSpas([]);
+    setSelectedSpaId(null);
+    setCitySearchError('');
+    setStatus('location-error');
+    setMessage('Elige cómo quieres explorar: comparte tu ubicación o busca una ciudad.');
+  }
 
   const selectedSpa = spas.find((spa) => spa.id === selectedSpaId) ?? null;
 
@@ -157,14 +269,14 @@ export default function ExploreScreen() {
             </View>
             <Pressable
               accessibilityLabel="Actualizar ubicación y spas"
-              disabled={status === 'loading'}
+              disabled={status === 'loading' || status === 'locating'}
               onPress={() => setRefreshToken((value) => value + 1)}
               style={({ pressed }) => [
                 styles.iconButton,
                 { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected },
                 pressed && styles.pressed,
               ]}>
-              {status === 'loading' ? (
+              {status === 'loading' || status === 'locating' ? (
                 <ActivityIndicator color={theme.text} size="small" />
               ) : Platform.OS === 'web' ? (
                 <ThemedText type="smallBold">Actualizar</ThemedText>
@@ -186,62 +298,145 @@ export default function ExploreScreen() {
         </View>
 
         <View style={[styles.explorerLayout, isWideWeb && styles.explorerLayoutWide]}>
-          <View style={[styles.mapWrapper, isWideWeb && styles.mapWrapperWide]}>
-            <View style={styles.mapBadge}>
-              <View style={styles.liveDot} />
-              <ThemedText type="smallBold" style={styles.mapBadgeText}>
-                {spas.length > 0 ? `${spas.length} lugares en tu zona` : 'Explorando tu zona'}
-              </ThemedText>
-            </View>
-            {location && Platform.OS !== 'web' && (
-              <View style={styles.zoomControls}>
-                <Pressable
-                  accessibilityLabel="Acercar mapa"
-                  onPress={() => setZoom((value) => Math.min(MAX_ZOOM, value + 1))}
-                  style={({ pressed }) => [
-                    styles.zoomButton,
-                    { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected },
-                    pressed && styles.pressed,
-                  ]}>
-                  <SymbolView name="plus" size={16} tintColor={theme.text} />
-                </Pressable>
-                <Pressable
-                  accessibilityLabel="Alejar mapa"
-                  onPress={() => setZoom((value) => Math.max(MIN_ZOOM, value - 1))}
-                  style={({ pressed }) => [
-                    styles.zoomButton,
-                    { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected },
-                    pressed && styles.pressed,
-                  ]}>
-                  <SymbolView name="minus" size={16} tintColor={theme.text} />
-                </Pressable>
+          {location ? (
+            <View style={[styles.mapWrapper, isWideWeb && styles.mapWrapperWide]}>
+              <View style={styles.mapBadge}>
+                <View style={styles.liveDot} />
+                <ThemedText type="smallBold" numberOfLines={1} style={styles.mapBadgeText}>
+                  {spas.length > 0 ? `${spas.length} lugares · ${locationLabel}` : locationLabel}
+                </ThemedText>
               </View>
-            )}
-            {location ? (
+              <Pressable
+                accessibilityLabel="Cambiar ciudad o zona de búsqueda"
+                onPress={changeSearchArea}
+                style={({ pressed }) => [styles.mapChangeButton, pressed && styles.pressed]}>
+                <ThemedText type="smallBold" style={styles.mapChangeButtonText}>Cambiar zona</ThemedText>
+              </Pressable>
+              {Platform.OS !== 'web' && (
+                <View style={styles.zoomControls}>
+                  <Pressable
+                    accessibilityLabel="Acercar mapa"
+                    onPress={() => setZoom((value) => Math.min(MAX_ZOOM, value + 1))}
+                    style={({ pressed }) => [
+                      styles.zoomButton,
+                      { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected },
+                      pressed && styles.pressed,
+                    ]}>
+                    <SymbolView name="plus" size={16} tintColor={theme.text} />
+                  </Pressable>
+                  <Pressable
+                    accessibilityLabel="Alejar mapa"
+                    onPress={() => setZoom((value) => Math.max(MIN_ZOOM, value - 1))}
+                    style={({ pressed }) => [
+                      styles.zoomButton,
+                      { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected },
+                      pressed && styles.pressed,
+                    ]}>
+                    <SymbolView name="minus" size={16} tintColor={theme.text} />
+                  </Pressable>
+                </View>
+              )}
               <SpaMap
                 key={refreshToken}
                 location={location}
                 spas={spas}
                 selectedSpaId={selectedSpaId}
                 zoom={zoom}
+                showMyLocation={isMyLocation}
                 onSelectSpa={setSelectedSpaId}
               />
-            ) : (
-              <View style={[styles.loadingMap, { backgroundColor: theme.backgroundElement }]}> 
-                <ActivityIndicator color={theme.text} size="large" />
-                <ThemedText type="small">{message}</ThemedText>
-                {status === 'error' && (
-                  <Pressable
-                    onPress={() => setRefreshToken((value) => value + 1)}
-                    style={[styles.retryButton, { backgroundColor: theme.text }]}> 
-                    <ThemedText type="smallBold" style={{ color: theme.background }}>
-                      Intentar de nuevo
-                    </ThemedText>
-                  </Pressable>
-                )}
+            </View>
+          ) : (
+            <View
+              style={[
+                styles.locationPrompt,
+                { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected },
+              ]}>
+              <View style={styles.locationPromptIcon}>
+                <SymbolView name="location.fill" size={24} tintColor={ACCENT} />
               </View>
-            )}
-          </View>
+              <ThemedText type="subtitle" style={styles.locationPromptTitle}>
+                Encuentra bienestar cerca de ti
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.locationPromptCopy}>
+                Comparte tu ubicación para explorar opciones cercanas o busca cualquier ciudad.
+              </ThemedText>
+              <Pressable
+                onPress={() => setRefreshToken((value) => value + 1)}
+                disabled={status === 'locating'}
+                style={({ pressed }) => [
+                  styles.locationButton,
+                  { backgroundColor: ACCENT },
+                  pressed && styles.pressed,
+                ]}>
+                {status === 'locating' ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <ThemedText type="smallBold" style={styles.locationButtonText}>
+                    Usar mi ubicación
+                  </ThemedText>
+                )}
+              </Pressable>
+              <View style={styles.dividerRow}>
+                <View style={styles.divider} />
+                <ThemedText type="code" themeColor="textSecondary">O BUSCA UNA ZONA</ThemedText>
+                <View style={styles.divider} />
+              </View>
+              <View style={styles.citySearchRow}>
+                <TextInput
+                  accessibilityLabel="Ciudad o zona"
+                  value={cityQuery}
+                  onChangeText={setCityQuery}
+                  onSubmitEditing={searchCities}
+                  placeholder="Ciudad, estado o país"
+                  placeholderTextColor={theme.textSecondary}
+                  returnKeyType="search"
+                  style={[styles.cityInput, { color: theme.text, borderColor: theme.backgroundSelected }]}
+                />
+                <Pressable
+                  accessibilityLabel="Buscar ciudad"
+                  disabled={!cityQuery.trim() || isSearchingCity}
+                  onPress={searchCities}
+                  style={({ pressed }) => [
+                    styles.citySearchButton,
+                    { backgroundColor: theme.text },
+                    pressed && styles.pressed,
+                  ]}>
+                  {isSearchingCity ? (
+                    <ActivityIndicator color={theme.background} />
+                  ) : (
+                    <SymbolView name="magnifyingglass" size={18} tintColor={theme.background} />
+                  )}
+                </Pressable>
+              </View>
+              {!!citySearchError && (
+                <ThemedText type="small" style={styles.searchError}>
+                  {citySearchError}
+                </ThemedText>
+              )}
+              {!!cityResults.length && (
+                <View style={styles.cityResults}>
+                  {cityResults.map((suggestion) => (
+                    <Pressable
+                      key={suggestion.id}
+                      onPress={() => selectCity(suggestion)}
+                      style={styles.cityResult}>
+                      <SymbolView name="mappin" size={16} tintColor={ACCENT} />
+                      <ThemedText type="small" numberOfLines={2} style={styles.cityResultText}>
+                        {suggestion.label}
+                      </ThemedText>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+              <ThemedText
+                type="code"
+                themeColor="textSecondary"
+                style={styles.geocoderAttribution}>
+                Búsqueda de lugares: Photon · datos de OpenStreetMap
+              </ThemedText>
+            </View>
+          )}
 
           {spas.length > 0 && (
             <View
@@ -391,6 +586,7 @@ const styles = StyleSheet.create({
     top: Spacing.three,
     left: Spacing.three,
     minHeight: 34,
+    maxWidth: '72%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
@@ -399,7 +595,19 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(20, 38, 34, 0.88)',
   },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#70D6B5' },
-  mapBadgeText: { color: '#FFFFFF' },
+  mapBadgeText: { color: '#FFFFFF', flexShrink: 1 },
+  mapChangeButton: {
+    position: 'absolute',
+    zIndex: 2,
+    top: Spacing.three,
+    right: Spacing.three,
+    minHeight: 34,
+    justifyContent: 'center',
+    borderRadius: 6,
+    paddingHorizontal: Spacing.three,
+    backgroundColor: 'rgba(20, 38, 34, 0.88)',
+  },
+  mapChangeButtonText: { color: '#FFFFFF' },
   zoomControls: {
     position: 'absolute',
     left: Spacing.three,
@@ -415,19 +623,67 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  loadingMap: {
+  locationPrompt: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.three,
     padding: Spacing.four,
+    borderWidth: 1,
+    borderRadius: 12,
+    minHeight: 320,
   },
-  retryButton: {
-    minHeight: 44,
+  locationPromptIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: ACCENT_SOFT,
+  },
+  locationPromptTitle: { fontSize: 25, lineHeight: 32, textAlign: 'center' },
+  locationPromptCopy: { maxWidth: 400, textAlign: 'center' },
+  locationButton: {
+    minHeight: 48,
+    minWidth: 220,
     borderRadius: 8,
+    alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.four,
   },
+  locationButtonText: { color: '#FFFFFF' },
+  dividerRow: { width: '100%', maxWidth: 420, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  divider: { flex: 1, height: 1, backgroundColor: 'rgba(120, 130, 125, 0.28)' },
+  citySearchRow: { width: '100%', maxWidth: 420, flexDirection: 'row', gap: Spacing.two },
+  cityInput: {
+    flex: 1,
+    minHeight: 48,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: Spacing.three,
+    fontSize: 16,
+  },
+  citySearchButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cityResults: { width: '100%', maxWidth: 420, gap: Spacing.one },
+  cityResult: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+    borderRadius: 6,
+    backgroundColor: 'rgba(40, 125, 107, 0.08)',
+  },
+  cityResultText: { flex: 1 },
+  searchError: { color: '#B42318', textAlign: 'center' },
+  geocoderAttribution: { textAlign: 'center', fontSize: 10 },
   resultsSection: { paddingTop: Spacing.three },
   resultsSectionWide: { width: 360, height: 520, paddingTop: 0, borderRadius: 8, overflow: 'hidden' },
   resultsHeader: {

@@ -19,6 +19,7 @@ type SpaMapProps = {
   spas: NearbySpa[];
   selectedSpaId: string | null;
   zoom: number;
+  showMyLocation?: boolean;
   onSelectSpa: (id: string) => void;
 };
 
@@ -33,7 +34,7 @@ function createSpaIcon(leaflet: typeof import('leaflet'), index: number, selecte
 }
 
 export function SpaMap(_props: SpaMapProps) {
-  const { location, spas, selectedSpaId, zoom, onSelectSpa } = _props;
+  const { location, spas, selectedSpaId, zoom, showMyLocation = true, onSelectSpa } = _props;
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import('leaflet').Map | null>(null);
   const markersRef = useRef<Map<string, import('leaflet').Marker>>(new Map());
@@ -66,7 +67,7 @@ export function SpaMap(_props: SpaMapProps) {
         fillColor: '#287D6B',
         fillOpacity: 1,
       })
-        .bindTooltip('Tu ubicación', { direction: 'top' })
+        .bindTooltip(showMyLocation ? 'Tu ubicación' : 'Centro de búsqueda · ubicación aproximada', { direction: 'top' })
         .addTo(map);
 
       const bounds = L.latLngBounds([[location.latitude, location.longitude]]);
@@ -95,7 +96,7 @@ export function SpaMap(_props: SpaMapProps) {
       markers.clear();
       activeMap?.remove();
     };
-  }, [location, onSelectSpa, spas, zoom]);
+  }, [location, onSelectSpa, showMyLocation, spas, zoom]);
 
   useEffect(() => {
     let disposed = false;

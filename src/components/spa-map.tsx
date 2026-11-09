@@ -19,10 +19,11 @@ type SpaMapProps = {
   spas: NearbySpa[];
   selectedSpaId: string | null;
   zoom: number;
+  showMyLocation?: boolean;
   onSelectSpa: (id: string) => void;
 };
 
-export function SpaMap({ location, spas, selectedSpaId, zoom, onSelectSpa }: SpaMapProps) {
+export function SpaMap({ location, spas, selectedSpaId, zoom, showMyLocation = true, onSelectSpa }: SpaMapProps) {
   const cameraPosition = { coordinates: location, zoom };
 
   if (Platform.OS === 'ios') {
@@ -37,8 +38,8 @@ export function SpaMap({ location, spas, selectedSpaId, zoom, onSelectSpa }: Spa
           systemImage: 'sparkles',
           tintColor: spa.id === selectedSpaId ? '#0F766E' : '#D97706',
         }))}
-        properties={{ isMyLocationEnabled: true, selectionEnabled: true }}
-        uiSettings={{ compassEnabled: true, myLocationButtonEnabled: true }}
+        properties={{ isMyLocationEnabled: showMyLocation, selectionEnabled: true }}
+        uiSettings={{ compassEnabled: true, myLocationButtonEnabled: showMyLocation }}
         onMarkerClick={(marker) => marker.id && onSelectSpa(marker.id)}
       />
     );
@@ -55,8 +56,8 @@ export function SpaMap({ location, spas, selectedSpaId, zoom, onSelectSpa }: Spa
         snippet: `${spa.distanceKm.toFixed(1)} km · ${spa.address}`,
         showCallout: spa.id === selectedSpaId,
       }))}
-      properties={{ isMyLocationEnabled: true, selectionEnabled: true }}
-      uiSettings={{ compassEnabled: true, myLocationButtonEnabled: true }}
+      properties={{ isMyLocationEnabled: showMyLocation, selectionEnabled: true }}
+      uiSettings={{ compassEnabled: true, myLocationButtonEnabled: showMyLocation }}
       onMarkerClick={(marker) => marker.id && onSelectSpa(marker.id)}
     />
   );
