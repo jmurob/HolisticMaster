@@ -20,8 +20,13 @@ export function distanceInKilometers(origin: GeoCoordinates, destination: GeoCoo
     Math.cos(originLatitude) *
       Math.cos(destinationLatitude) *
       Math.sin(longitudeDifference / 2) ** 2;
+  const normalizedHaversine = Math.min(1, Math.max(0, haversine));
 
-  return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+  return (
+    EARTH_RADIUS_KM *
+    2 *
+    Math.atan2(Math.sqrt(normalizedHaversine), Math.sqrt(1 - normalizedHaversine))
+  );
 }
 
 export function buildOpenStreetMapEmbedUrl({ center, zoom }: BuildOpenStreetMapEmbedUrlOptions) {

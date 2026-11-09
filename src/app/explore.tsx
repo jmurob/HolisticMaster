@@ -23,7 +23,7 @@ import { distanceInKilometers } from '@/lib/map-utils';
 const SEARCH_RADIUS_METERS = 15000;
 const ACCENT = '#287D6B';
 const ACCENT_SOFT = '#DCEDE7';
-const WARM_ACCENT = '#D98F45';
+const WARM_ACCENT = '#887493';
 const MIN_ZOOM = 9;
 const MAX_ZOOM = 18;
 
@@ -178,7 +178,7 @@ export default function ExploreScreen() {
     setCityResults([]);
     try {
       const response = await fetch(
-        `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5&lang=es`,
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`,
       );
       if (!response.ok) throw new Error('search-failed');
 
@@ -205,7 +205,7 @@ export default function ExploreScreen() {
         setCityResults(suggestions);
       }
     } catch {
-      setCitySearchError('No pudimos buscar esa zona. Revisa tu conexión e inténtalo otra vez.');
+      setCitySearchError('El buscador de lugares no respondió. Revisa tu conexión e inténtalo otra vez.');
     } finally {
       setIsSearchingCity(false);
     }
@@ -262,7 +262,11 @@ export default function ExploreScreen() {
         <View style={[styles.header, isWideWeb && styles.headerWide]}>
           <View style={styles.headerTopRow}>
             <View style={[styles.eyebrow, { backgroundColor: ACCENT_SOFT }]}>
-              <SymbolView name="sparkles" size={13} tintColor={ACCENT} />
+              <SymbolView
+                name={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' }}
+                size={13}
+                tintColor={ACCENT}
+              />
               <ThemedText type="code" style={styles.eyebrowText}>
                 BIENESTAR CERCA
               </ThemedText>
@@ -353,7 +357,11 @@ export default function ExploreScreen() {
                 { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected },
               ]}>
               <View style={styles.locationPromptIcon}>
-                <SymbolView name="location.fill" size={24} tintColor={ACCENT} />
+                <SymbolView
+                  name={{ ios: 'location.fill', android: 'my_location', web: 'my_location' }}
+                  size={24}
+                  tintColor={ACCENT}
+                />
               </View>
               <ThemedText type="subtitle" style={styles.locationPromptTitle}>
                 Encuentra bienestar cerca de ti
@@ -388,6 +396,8 @@ export default function ExploreScreen() {
                   value={cityQuery}
                   onChangeText={setCityQuery}
                   onSubmitEditing={searchCities}
+                  spellCheck={false}
+                  autoCorrect={false}
                   placeholder="Ciudad, estado o país"
                   placeholderTextColor={theme.textSecondary}
                   returnKeyType="search"
@@ -405,7 +415,11 @@ export default function ExploreScreen() {
                   {isSearchingCity ? (
                     <ActivityIndicator color={theme.background} />
                   ) : (
-                    <SymbolView name="magnifyingglass" size={18} tintColor={theme.background} />
+                    <SymbolView
+                      name={{ ios: 'magnifyingglass', android: 'search', web: 'search' }}
+                      size={20}
+                      tintColor={theme.background}
+                    />
                   )}
                 </Pressable>
               </View>
@@ -421,7 +435,11 @@ export default function ExploreScreen() {
                       key={suggestion.id}
                       onPress={() => selectCity(suggestion)}
                       style={styles.cityResult}>
-                      <SymbolView name="mappin" size={16} tintColor={ACCENT} />
+                      <SymbolView
+                        name={{ ios: 'mappin', android: 'place', web: 'place' }}
+                        size={16}
+                        tintColor={ACCENT}
+                      />
                       <ThemedText type="small" numberOfLines={2} style={styles.cityResultText}>
                         {suggestion.label}
                       </ThemedText>

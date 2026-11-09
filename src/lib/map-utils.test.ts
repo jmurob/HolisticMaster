@@ -19,6 +19,14 @@ describe('distanceInKilometers', () => {
     expect(distance).toBeLessThan(125);
   });
 
+  it('remains finite for nearly antipodal points', () => {
+    const first = { latitude: -84.99999999999989, longitude: 0 };
+    const second = { latitude: 84.99999999999976, longitude: -179.99999532368918 };
+
+    expect(Number.isFinite(distanceInKilometers(first, second))).toBe(true);
+    expect(distanceInKilometers(first, second)).toBeCloseTo(Math.PI * 6371, 5);
+  });
+
   it('is symmetric and always non-negative (property-based)', () => {
     const coordinateArbitrary = record({
       latitude: double({ min: -85, max: 85, noNaN: true, noDefaultInfinity: true }),

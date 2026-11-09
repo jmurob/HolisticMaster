@@ -6,15 +6,13 @@ import {
     TabTrigger,
     TabTriggerSlotProps,
 } from 'expo-router/ui';
-import { SymbolView } from 'expo-symbols';
 import { forwardRef } from 'react';
-import { Pressable, StyleSheet, useColorScheme, useWindowDimensions, View, type PressableInstance } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View, type PressableInstance } from 'react-native';
 
-import { ExternalLink } from './external-link';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Spacing } from '@/constants/theme';
 
 export default function AppTabs() {
   return (
@@ -55,10 +53,8 @@ export const TabButton = forwardRef<PressableInstance, Omit<TabTriggerSlotProps,
 });
 
 export function CustomTabList(props: TabListProps) {
-  const scheme = useColorScheme() ?? 'light';
   const { width } = useWindowDimensions();
   const compact = width < 700;
-  const colors = Colors[scheme];
 
   return (
     <View {...props} style={[styles.tabListContainer, compact && styles.tabListContainerCompact]}>
@@ -72,19 +68,6 @@ export function CustomTabList(props: TabListProps) {
         )}
 
         {props.children}
-
-        {!compact && (
-          <ExternalLink href="https://docs.expo.dev" asChild>
-            <Pressable style={styles.externalPressable}>
-              <ThemedText type="link">Docs</ThemedText>
-              <SymbolView
-                tintColor={colors.text}
-                name={{ ios: 'arrow.up.right.square', web: 'link' }}
-                size={12}
-              />
-            </Pressable>
-          </ExternalLink>
-        )}
       </ThemedView>
     </View>
   );
@@ -128,12 +111,5 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
     paddingHorizontal: Spacing.three,
     borderRadius: Spacing.three,
-  },
-  externalPressable: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: Spacing.one,
-    marginLeft: Spacing.three,
   },
 });

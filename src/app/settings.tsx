@@ -11,6 +11,12 @@ import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 const ACCENT = '#287D6B';
+const SETTINGS_SYMBOLS = {
+  'location.fill': { ios: 'location.fill', android: 'my_location', web: 'my_location' },
+  'circle.lefthalf.filled': { ios: 'circle.lefthalf.filled', android: 'contrast', web: 'contrast' },
+  scope: { ios: 'scope', android: 'center_focus_strong', web: 'center_focus_strong' },
+  'map.fill': { ios: 'map.fill', android: 'map', web: 'map' },
+} as const;
 
 type SettingRowProps = {
   icon: 'location.fill' | 'circle.lefthalf.filled' | 'scope' | 'map.fill';
@@ -24,7 +30,7 @@ function SettingRow({ icon, title, value, onPress }: SettingRowProps) {
   const content = (
     <>
       <View style={styles.settingIcon}>
-        <SymbolView name={icon} size={18} tintColor={ACCENT} />
+      <SymbolView name={SETTINGS_SYMBOLS[icon]} size={18} tintColor={ACCENT} />
       </View>
       <View style={styles.settingCopy}>
         <ThemedText type="smallBold">{title}</ThemedText>
@@ -32,7 +38,13 @@ function SettingRow({ icon, title, value, onPress }: SettingRowProps) {
           {value}
         </ThemedText>
       </View>
-      {onPress && <SymbolView name="chevron.right" size={14} tintColor={theme.textSecondary} />}
+      {onPress && (
+        <SymbolView
+          name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+          size={14}
+          tintColor={theme.textSecondary}
+        />
+      )}
     </>
   );
 
@@ -92,7 +104,11 @@ export default function SettingsScreen() {
           contentContainerStyle={styles.content}>
           <View style={styles.header}>
             <View style={styles.headerIcon}>
-              <SymbolView name="gearshape.fill" size={24} tintColor="#FFFFFF" />
+              <SymbolView
+                name={{ ios: 'gearshape.fill', android: 'settings', web: 'settings' }}
+                size={24}
+                tintColor="#FFFFFF"
+              />
             </View>
             <ThemedText type="subtitle">Ajustes</ThemedText>
             <ThemedText type="small" themeColor="textSecondary" style={styles.subtitle}>
@@ -125,7 +141,7 @@ export default function SettingsScreen() {
               EXPLORACIÓN
             </ThemedText>
             <ThemedView type="backgroundElement" style={styles.settingsGroup}>
-              <SettingRow icon="scope" title="Radio de búsqueda" value="8 kilómetros" />
+              <SettingRow icon="scope" title="Radio de búsqueda" value="15 kilómetros" />
               <View style={[styles.divider, { backgroundColor: theme.backgroundSelected }]} />
               <SettingRow icon="map.fill" title="Datos de lugares" value="OpenStreetMap" />
             </ThemedView>
@@ -156,7 +172,7 @@ const styles = StyleSheet.create({
   headerIcon: {
     width: 48,
     height: 48,
-    borderRadius: 8,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: ACCENT,
@@ -164,7 +180,7 @@ const styles = StyleSheet.create({
   subtitle: { maxWidth: 320, textAlign: 'center' },
   section: { gap: Spacing.two },
   sectionTitle: { color: ACCENT, paddingHorizontal: Spacing.one },
-  settingsGroup: { borderRadius: 8, overflow: 'hidden' },
+  settingsGroup: { borderRadius: 14, overflow: 'hidden' },
   settingRow: {
     minHeight: 72,
     flexDirection: 'row',
@@ -175,7 +191,7 @@ const styles = StyleSheet.create({
   settingIcon: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#DCEDE7',
